@@ -1069,6 +1069,7 @@ public int runProgram(const char[] exefile, const char*[] runargs, bool verbose,
  *    cpp = name of C preprocessor program
  *    filename = C source file name
  *    importc_h = filename of importc.h
+ *    includePath = path passed to the preprocessor as an include path
  *    cppswitches = array of switches to pass to C preprocessor
  *    verbose = print progress to eSink
  *    eSink = for verbose messages and error messages
@@ -1077,7 +1078,7 @@ public int runProgram(const char[] exefile, const char*[] runargs, bool verbose,
  * Returns:
  *    error status, 0 for success
  */
-public int runPreprocessor(ref const Loc loc, const(char)[] cpp, const(char)[] filename, const(char)* importc_h, ref Array!(const(char)*) cppswitches,
+public int runPreprocessor(ref const Loc loc, const(char)[] cpp, const(char)[] filename, const(char)* importc_h, const(char)[] includePath, ref Array!(const(char)*) cppswitches,
     bool verbose, ErrorSink eSink, ref OutBuffer defines, out DArray!ubyte text)
 {
     //printf("runPreprocessor() cpp: %.*s filename: %.*s\n", cast(int)cpp.length, cpp.ptr, cast(int)filename.length, filename.ptr);
@@ -1128,6 +1129,14 @@ public int runPreprocessor(ref const Loc loc, const(char)[] cpp, const(char)[] f
                 buf.writestring(cpp);
                 buf.printf(" /P /Zc:preprocessor /PD /nologo /utf-8 %.*s /FI%s /Fi%.*s",
                     cast(int)filename.length, filename.ptr, importc_h, cast(int)output.length, output.ptr);
+
+                /* Append the include path, if it was provided
+                 */
+                if (includePath)
+                {
+                    buf.write(" /I");
+                    buf.write(includePath);
+                }
 
                 /* Append preprocessor switches to command line
                  */
@@ -1284,6 +1293,14 @@ public int runPreprocessor(ref const Loc loc, const(char)[] cpp, const(char)[] f
                 buf.printf(" %.*s -HI%s -ED -o%.*s",
                     cast(int)filename.length, filename.ptr, importc_h, cast(int)output.length, output.ptr);
 
+                /* Append the include path, if it was provided
+                 */
+                if (includePath)
+                {
+                    buf.write(" -I");
+                    buf.write(includePath);
+                }
+
                 /* Append preprocessor switches to command line
                  */
                 foreach (a; cppswitches)
@@ -1404,6 +1421,13 @@ public int runPreprocessor(ref const Loc loc, const(char)[] cpp, const(char)[] f
 
         // need to redefine some macros in importc.h
         argv.push("-Wno-builtin-macro-redefined");
+
+        // append the include path, if it was provided
+        if (includePath)
+        {
+            argv.push("-I");
+            argv.push(includePath.xarraydup.ptr);
+        }
 
         if (target.os == Target.OS.OSX)
         {
